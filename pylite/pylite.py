@@ -8,6 +8,7 @@ from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.styles import Style
 from pygments.lexers.sql import SqlLexer
 from tabulate import tabulate
+from .commands import handle_dot_command
 
 def main(database):
     style = Style.from_dict({
@@ -23,6 +24,9 @@ def main(database):
     while True:
         try:
             text = session.prompt('> ')
+
+            if text.startswith("."):
+                handle_dot_command(text, connection)
         except KeyboardInterrupt:
             continue  # Control-C pressed. Try again.
         except EOFError:
