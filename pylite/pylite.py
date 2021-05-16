@@ -9,6 +9,7 @@ from prompt_toolkit.styles import Style
 from pygments.lexers.sql import SqlLexer
 from tabulate import tabulate
 from .commands import handle_dot_command
+from .output import print_result
 
 def main(database):
     style = Style.from_dict({
@@ -38,13 +39,7 @@ def main(database):
             except Exception as e:
                 print(repr(e))
             else:
-                headers = tuple(col[0] for col in messages.description)
-
-                print(tabulate(messages, headers=headers, tablefmt='grid'))
-                #print(header)
-
-                #for message in messages:
-                #    print(message)
+                print_result(messages)
 
     print('GoodBye!')
 
