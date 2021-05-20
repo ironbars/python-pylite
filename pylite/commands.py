@@ -24,7 +24,7 @@ def cmd(name):
 
 
 # All commands need to raise either EOFError to exit, or KeyboardInterrupt to
-# continue
+# continue the main REPL
 
 @cmd(".quit")
 def _quit(cmd_args, connection):
@@ -45,3 +45,37 @@ def _read(cmd_args, connection):
         print("Incomplete statement")
 
     raise KeyboardInterrupt
+
+
+@cmd(".schema")
+def _schema(cmd_args, connection):
+    sql = "SELECT sql FROM sqlite_master WHERE type = 'table'"
+    table = cmd_args[0] if len(cmd_args) > 0 else None
+
+    if table is not None:
+        sql += " AND name = ?"
+        result = connection.execute(sql, (table,))
+    else:
+        result = connection.execute(sql)
+
+    print(result.fetchone()[0] + ";")
+    
+    raise KeyboardInterrupt
+
+
+@cmd(".tables")
+def _tables(cmd_args, connection):
+    sql = "SELECT name FROM sqlite_master WHERE type = 'table'"
+    table = cmd_args[0] if len(cmd_args) > 0 else None
+
+    if table is not None:
+        sql += " AND name LIKE ?"
+        result = connection.execute(sql, (table,))
+    else:
+        result = connection.execute(sql)
+
+    for row in result.fetchall():
+        print(row[0])
+
+    raise KeyboardInterrupt
+

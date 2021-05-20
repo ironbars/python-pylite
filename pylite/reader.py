@@ -15,7 +15,7 @@ class PyliteSqlReader(object):
         with open(self.sql_file, "r") as sf:
             statement_components = []
             statement_terminated = False
-            sql_gen = self._strip_sql_comments(sf)
+            sql_gen = (line.split("--")[0].strip() for line in sf)
 
             try:
                 for line in sql_gen:
@@ -36,11 +36,6 @@ class PyliteSqlReader(object):
                     statement_components = []
             except StopIteration:
                 raise PyliteSqlReaderError("Incomplete statement")
-
-
-    def _strip_sql_comments(self, f):
-        for line in f:
-            yield line.split("--")[0].strip()
 
 
     # Not quite sure the use case of this, but I kind of like having it here
