@@ -1,6 +1,9 @@
 from tabulate import tabulate
 
 def print_result(cursor):
-    headers = tuple(col[0] for col in cursor.description)
+    rows = cursor.fetchall()
 
-    print(tabulate(cursor, headers=headers, tablefmt="grid"))
+    if len(rows) > 0:
+        headers = tuple(col[0] for col in cursor.description)
+
+        print(tabulate(rows, headers=headers, tablefmt="grid"))
