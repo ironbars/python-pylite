@@ -1,5 +1,5 @@
 from .output import print_result
-from .reader import PyliteSqlReader, PyliteSqlReaderError
+from .input import PyliteSqlFileReader, PyliteSqlReaderError
 
 COMMANDS = dict()
 
@@ -34,7 +34,7 @@ def _quit(cmd_args, connection):
 @cmd(".read")
 def _read(cmd_args, connection):
     sql_file = cmd_args[0]
-    reader = PyliteSqlReader(sql_file)
+    reader = PyliteSqlFileReader(sql_file)
 
     try:
         for sql in reader:
