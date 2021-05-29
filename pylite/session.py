@@ -7,7 +7,8 @@ from .input import PyliteSqlPromptReader
 
 
 class PylitePromptSession(object):
-    def __init__(self):
+    def __init__(self, connection):
+        self.connection = connection
         self.style = Style.from_dict({
             "pygments.keyword": "#33C3FF",
             "pygments.literal.string": "#FF5833",
@@ -24,4 +25,34 @@ class PylitePromptSession(object):
         text = self.reader.prompt()
 
         return text
+
+
+    @property
+    def message(self):
+        return self.reader.message
+
+
+    @message.setter
+    def message(self, new_message):
+        self.reader.message = new_message
+
+
+    @message.deleter
+    def message(self):
+        self.reader.message = "pylite> "
+
+
+    @property
+    def continuation(self):
+        return self.reader.continuation
+
+
+    @continuation.setter
+    def continuation(self, new_continuation):
+        self.reader.continuation = new_continuation
+
+
+    @continuation.deleter
+    def continuation(self):
+        self.reader.continuation = "   ...> "
 

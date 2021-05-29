@@ -9,23 +9,22 @@ from .output import print_result
 
 
 def main(database):
-    connection = sqlite3.connect(database)
-    session = PylitePromptSession()
+    session = PylitePromptSession(connection=sqlite3.connect(database))
 
     while True:
         try:
             text = session.prompt()
 
             if text.startswith("."):
-                handle_dot_command(text, connection)
+                handle_dot_command(text, session)
         except KeyboardInterrupt:
             continue  # Control-C pressed. Try again.
         except EOFError:
             break  # Control-D pressed.
 
-        with connection:
+        with session.connection:
             try:
-                messages = connection.execute(text)
+                messages = session.connection.execute(text)
             except Exception as e:
                 print(repr(e))
             else:

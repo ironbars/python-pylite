@@ -1,4 +1,5 @@
 import os
+import math
 from sqlite3 import complete_statement
 
 
@@ -68,19 +69,15 @@ class PyliteSqlFileReader(PyliteSqlReader):
 
 
 class PyliteSqlPromptReader(PyliteSqlReader):
-    def __init__(self, source):
-        self.primary_prompt = "pylite> "
-        self.secondary_prompt = (
-            "." * 
-            len(self.primary_prompt.split(">")[0]) + 
-            "> "
-        )
+    def __init__(self, source, message="pylite> ", continuation="   ...> "):
+        self.message = message
+        self.continuation = continuation
 
         super().__init__(source)
 
 
     def prompt(self):
-        text = self.source.prompt(self.primary_prompt)
+        text = self.source.prompt(self.message)
 
         if text.startswith("."):
             return text
@@ -89,4 +86,5 @@ class PyliteSqlPromptReader(PyliteSqlReader):
 
 
     def get_next(self, sql_src):
-        return sql_src.prompt(self.secondary_prompt)
+        return sql_src.prompt(self.continuation)
+
