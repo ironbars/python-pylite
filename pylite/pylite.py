@@ -15,7 +15,6 @@ def main(database):
             text = session.prompt()
 
             if text.startswith("."):
-                print('it starts with a .')
                 handle_dot_command(text, session)
         except KeyboardInterrupt:
             continue  # Control-C pressed. Try again.

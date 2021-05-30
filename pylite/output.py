@@ -39,18 +39,18 @@ def _write_list(rows, writer):
 @output_mode("line")
 def _write_lines(rows, writer):
     fields = rows[0]
-    dict_data = rows_to_json(rows)
+    dict_data = rows_to_dict(rows)
     line_data = []
     justify = max(len(field) for field in fields)
 
     for row in dict_data:
         lines = [
-            " ".join(f"{k:>{justify}}", "=", f"{v}") 
+            " ".join([f"{k:>{justify}}", "=", f"{v}"]) 
             for k, v in row.items()
         ]
         row_as_lines = "\n".join(lines)
 
-        line_data.append(rows_as_lines)
+        line_data.append(row_as_lines)
 
     print("\n\n".join(line_data), file=writer.dest)
     
@@ -146,6 +146,9 @@ class PyliteSqlResultWriter(object):
         if new_dest == "stdout":
             self._dest = sys.stdout
         else:
+            if not self._dest.closed and self._dest is not sys.stdout:
+                self._dest.close()
+
             self._dest = open(new_dest, "w")
 
 
