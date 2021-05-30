@@ -5,7 +5,6 @@ import sqlite3
 
 from .session import PylitePromptSession
 from .commands import handle_dot_command
-from .output import print_result
 
 
 def main(database):
@@ -16,6 +15,7 @@ def main(database):
             text = session.prompt()
 
             if text.startswith("."):
+                print('it starts with a .')
                 handle_dot_command(text, session)
         except KeyboardInterrupt:
             continue  # Control-C pressed. Try again.
@@ -28,7 +28,7 @@ def main(database):
             except Exception as e:
                 print(repr(e))
             else:
-                print_result(messages)
+                session.write_result(messages)
 
     print('GoodBye!')
 

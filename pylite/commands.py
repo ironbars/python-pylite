@@ -1,6 +1,5 @@
 import shlex
 
-from .output import print_result
 from .input import PyliteSqlFileReader, PyliteSqlReaderError
 
 COMMANDS = dict()
@@ -42,7 +41,7 @@ def _read(cmd_args, session):
         for sql in reader:
             result = session.connection.execute(sql)
 
-            print_result(result)
+            session.write_result(result)
     except PyliteSqlReaderError:
         print("Incomplete statement")
 
@@ -60,7 +59,7 @@ def _schema(cmd_args, session):
     else:
         result = session.connection.execute(sql)
 
-    print(result.fetchone()[0] + ";")
+    session.write_result(result.fetchone()[0] + ";", mode="meta")
     
     raise KeyboardInterrupt
 
@@ -77,7 +76,7 @@ def _tables(cmd_args, session):
         result = session.connection.execute(sql)
 
     for row in result.fetchall():
-        print(row[0])
+        session.write_result(row[0], mode="meta")
 
     raise KeyboardInterrupt
 
@@ -96,6 +95,15 @@ def _prompt(cmd_args, session):
         session.continuation = new_continuation
     else:
         del session.continuation
+
+    raise KeyboardInterrupt
+
+
+@cmd(".mode")
+def _mode(cmd_args, session):
+    mode = cmd_args[0] if len(cmd_args) > 0 else "default"
+
+    session.output_mode = mode
 
     raise KeyboardInterrupt
 

@@ -4,6 +4,7 @@ from prompt_toolkit.styles import Style
 from pygments.lexers.sql import SqlLexer
 
 from .input import PyliteSqlPromptReader
+from .output import PyliteSqlResultWriter
 
 
 class PylitePromptSession(object):
@@ -19,12 +20,17 @@ class PylitePromptSession(object):
             include_default_pygments_style=False
         )
         self.reader = PyliteSqlPromptReader(self.session)
+        self.writer = PyliteSqlResultWriter()
 
 
     def prompt(self):
         text = self.reader.prompt()
 
         return text
+
+
+    def write_result(self, data, mode=None):
+        self.writer.write_result(data, mode)
 
 
     @property
@@ -55,4 +61,54 @@ class PylitePromptSession(object):
     @continuation.deleter
     def continuation(self):
         self.reader.continuation = "   ...> "
+
+
+    @property
+    def output_mode(self):
+        return self.writer.mode
+
+
+    @output_mode.setter
+    def output_mode(self, new_mode):
+        self.writer.mode = new_mode
+
+
+    @output_mode.deleter
+    def output_mode(self):
+        del self.writer.mode
+
+
+    @property
+    def output_dest(self):
+        return self.writer.dest
+
+
+    @output_dest.setter
+    def output_dest(self, new_dest):
+        self.writer.dest = new_dest
+
+
+    @output_dest.deleter
+    def output_dest(self):
+        del self.writer.dest
+
+
+    @property
+    def colsep(self):
+        return self.writer.colsep
+
+
+    @colsep.setter
+    def colsep(self, new_colsep):
+        self.writer.colsep = new_colsep
+
+
+    @property
+    def rowsep(self):
+        return self.writer.rowsep
+
+
+    @rowsep.setter
+    def rowsep(self, new_rowsep):
+        self.writer.rowsep = new_rowsep
 
