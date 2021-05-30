@@ -93,7 +93,7 @@ def _prompt(cmd_args, session):
         del session.message
 
     if new_continuation is not None:
-        session.reader.continuation = new_continuation
+        session.continuation = new_continuation
     else:
         del session.continuation
 
