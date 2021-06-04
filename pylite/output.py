@@ -1,6 +1,5 @@
 import sys
 import json
-from enum import Enum
 from collections import OrderedDict
 
 from tabulate import tabulate
@@ -33,7 +32,7 @@ def _write_list(rows, writer):
     for row in data:
         str_data.append(writer.colsep.join(map(str, row)))
 
-    print(self.rowsep.join(str_data), file=writer.dest)
+    print(writer.rowsep.join(str_data), file=writer.dest)
 
 
 @output_mode("line")
@@ -57,6 +56,16 @@ def _write_lines(rows, writer):
 
 @output_mode("json")
 def _write_json(rows, writer):
+    dict_data = rows_to_dict(rows)
+
+    print(
+        "[" + ",\n".join(json.dumps(row) for row in dict_data) + "]",
+        file=writer.dest
+    )
+
+
+@output_mode("json-pretty")
+def _write_json_pretty(rows, writer):
     dict_data = rows_to_dict(rows)
 
     print(json.dumps(dict_data, indent=2), file=writer.dest)
