@@ -102,7 +102,7 @@ def _prompt(cmd_args, session):
 @cmd(".mode")
 def _mode(cmd_args, session):
     mode = cmd_args[0] if len(cmd_args) > 0 else "default"
-    session.output_mode = mode
+    session.mode = mode
 
     raise KeyboardInterrupt
 
@@ -110,7 +110,7 @@ def _mode(cmd_args, session):
 @cmd(".output")
 def _output(cmd_args, session):
     out = cmd_args[0] if len(cmd_args) > 0 else "stdout"
-    session.output_dest = out
+    session.dest = out
 
     raise KeyboardInterrupt
 

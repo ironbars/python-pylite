@@ -64,32 +64,32 @@ class PylitePromptSession(object):
 
 
     @property
-    def output_mode(self):
+    def mode(self):
         return self.writer.mode
 
 
-    @output_mode.setter
-    def output_mode(self, new_mode):
+    @mode.setter
+    def mode(self, new_mode):
         self.writer.mode = new_mode
 
 
-    @output_mode.deleter
-    def output_mode(self):
+    @mode.deleter
+    def mode(self):
         del self.writer.mode
 
 
     @property
-    def output_dest(self):
+    def dest(self):
         return self.writer.dest
 
 
-    @output_dest.setter
-    def output_dest(self, new_dest):
+    @dest.setter
+    def dest(self, new_dest):
         self.writer.dest = new_dest
 
 
-    @output_dest.deleter
-    def output_dest(self):
+    @dest.deleter
+    def dest(self):
         del self.writer.dest
 
 
