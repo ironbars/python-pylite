@@ -114,3 +114,39 @@ def _output(cmd_args, session):
 
     raise KeyboardInterrupt
 
+
+@cmd(".dump")
+def _dump(cmd_args, session):
+    table = cmd_args[0] if len(cmd_args) > 0 else None
+    connection = session.connection
+
+    if table is not None:
+        dump = ["BEGIN TRANSACTION;"]
+        sql = "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?"
+        schema = connection.execute(sql, (table,)).fetchone()
+
+        if not schema:
+            print("Table {} not found".format(table))
+            raise KeyboardInterrupt
+        
+        dump.append(schema[0] + ";")
+
+        tbl_info = connection.execute(
+            "SELECT * FROM pragma_table_info(?)", (table,)
+        )
+        column_names = [str(row[1]) for row in tbl_info.fetchall()]
+        insert_statements_sql = (
+            "SELECT 'INSERT INTO {} VALUES(" +
+            ",".join(["'||quote(" + col + ")||'" for col in column_names]) +
+            ");' FROM {}"
+        ).format(table, table)
+        insert_statements = connection.execute(insert_statements_sql)
+
+        dump.extend([s[0] for s in insert_statements.fetchall()])
+        dump.append("COMMIT;")
+        session.write_result("\n".join(dump), mode="meta")
+    else:
+        for line in session.connection.iterdump():
+            session.write_result(line, mode="meta")
+        
+    raise KeyboardInterrupt
