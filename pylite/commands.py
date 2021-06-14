@@ -1,8 +1,22 @@
+import sys
 import shlex
+import argparse
 
 from .input import PyliteSqlFileReader, PyliteSqlReaderError
+from .output import get_valid_output_modes
+
 
 COMMANDS = dict()
+
+
+class DotCommandArgParser(argparse.ArgumentParser):
+    def error(self, message):
+        self.print_usage(sys.stderr)
+        raise KeyboardInterrupt
+
+
+def eprint(*args, **kwargs):
+    print(*args, file=sys.stdout, **kwargs)
 
 
 def handle_dot_command(text, session):
@@ -11,142 +25,358 @@ def handle_dot_command(text, session):
     cmd_args = tokens[1:]
 
     try:
-        COMMANDS[command](cmd_args, session)
+        command_obj = COMMANDS[command]
+        command_obj.execute(cmd_args, session)
     except KeyError:
-        print("Unrecognized command: {}".format(command))
+        eprint("Error: unrecognized command: {}".format(command))
+        raise KeyboardInterrupt
 
 
 def cmd(name):
-    def wrapper(func):
-        COMMANDS[name] = func
+    def wrapper(cls):
+        COMMANDS[name] = cls(name)
 
-        return func
+        return cls
     return wrapper
 
 
-# All commands need to raise either EOFError to exit, or KeyboardInterrupt to
-# continue the main REPL
+class DotCommand(object):
+    def __init__(self, name):
+        self.name = name
+        self.parser = self.get_parser()
+
+    
+    def execute(self, cmd_args, session):
+        pass
+
+
+    def get_parser(self):
+        pass
+
 
 @cmd(".quit")
-def _quit(cmd_args, session):
-    raise EOFError
+class _DotQuit(DotCommand):
+    def execute(self, cmd_args, session):
+        raise EOFError
+    
+
+    def get_parser(self):
+        parser = DotCommandArgParser(
+            prog=self.name, 
+            usage="%(prog)s",
+            description="Exit the program",
+            add_help=False,
+        )
+
+        return parser
 
 
 @cmd(".read")
-def _read(cmd_args, session):
-    sql_file = cmd_args[0]
-    reader = PyliteSqlFileReader(sql_file)
+class _DotRead(DotCommand):
+    def execute(self, cmd_args, session):
+        c_args = self.parser.parse_args(cmd_args)
+        sql_file = c_args.FILE
+        reader = PyliteSqlFileReader(sql_file)
 
-    try:
-        for sql in reader:
-            result = session.connection.execute(sql)
+        try:
+            for sql in reader:
+                result = session.connection.execute(sql)
 
-            session.write_result(result)
-    except PyliteSqlReaderError:
-        print("Incomplete statement")
+                session.write_result(result)
+        except PyliteSqlReaderError:
+            eprint("Error: incomplete statement")
 
-    raise KeyboardInterrupt
+        raise KeyboardInterrupt
+
+
+    def get_parser(self):
+        parser = DotCommandArgParser(
+            prog=self.name,
+            description="Read input from FILE",
+            add_help=False,
+        )
+
+        parser.add_argument("FILE")
+
+        return parser
 
 
 @cmd(".schema")
-def _schema(cmd_args, session):
-    sql = "SELECT sql FROM sqlite_master WHERE type = 'table'"
-    table = cmd_args[0] if len(cmd_args) > 0 else None
+class _DotSchema(DotCommand):
+    def execute(self, cmd_args, session):
+        c_args = self.parser.parse_args(cmd_args)
+        sql = "SELECT sql from sqlite_master WHERE type = 'table'"
+        pattern = c_args.PATTERN
 
-    if table is not None:
-        sql += " AND name = ?"
-        result = session.connection.execute(sql, (table,))
-    else:
-        result = session.connection.execute(sql)
+        if pattern is not None:
+            sql += " AND name LIKE ?"
+            result = session.connection.execute(sql, (pattern,))
+        else:
+            result = session.connection.execute(sql)
 
-    session.write_result(result.fetchone()[0] + ";", mode="meta")
-    
-    raise KeyboardInterrupt
+        for schema in result.fetchall():
+            session.write_result(schema[0] + ";", mode="meta")
+
+        raise KeyboardInterrupt
+
+
+    def get_parser(self):
+        parser = DotCommandArgParser(
+            prog=self.name, 
+            add_help=False,
+            description="Show the CREATE statements matching PATTERN",
+        )
+
+        parser.add_argument(
+            "PATTERN", 
+            nargs="?", 
+            default=None,
+        )
+
+        return parser
 
 
 @cmd(".tables")
-def _tables(cmd_args, session):
-    sql = "SELECT name FROM sqlite_master WHERE type = 'table'"
-    table = cmd_args[0] if len(cmd_args) > 0 else None
+class _DotTables(DotCommand):
+    def execute(self, cmd_args, session):
+        c_args = self.parser.parse_args(cmd_args)
+        sql = "SELECT name FROM sqlite_master WHERE type = 'table'"
+        table = c_args.TABLE
 
-    if table is not None:
-        sql += " AND name LIKE ?"
-        result = session.connection.execute(sql, (table,))
-    else:
-        result = session.connection.execute(sql)
+        if table is not None:
+            sql += "AND name LIKE ?"
+            result = session.connection.execute(sql, (table,))
+        else:
+            result = session.connection.execute(sql)
 
-    for row in result.fetchall():
-        session.write_result(row[0], mode="meta")
+        for row in result.fetchall():
+            session.write_result(row[0], mode="meta")
 
-    raise KeyboardInterrupt
+        raise KeyboardInterrupt
+
+
+    def get_parser(self):
+        parser = DotCommandArgParser(
+            prog=self.name,
+            add_help=False,
+            description="List names of tables matching LIKE pattern PATTERN",
+        )
+
+        parser.add_argument("TABLE", nargs="?", default=None)
+
+        return parser
 
 
 @cmd(".prompt")
-def _prompt(cmd_args, session):
-    new_message = cmd_args[0] if len(cmd_args) > 0 else None
-    new_continuation = cmd_args[1] if len(cmd_args) > 1 else None
+class _DotPrompt(DotCommand):
+    def execute(self, cmd_args, session):
+        c_args = self.parser.parse_args(cmd_args)
+        new_message = c_args.PROMPT
+        new_continuation = c_args.CONTINUATION
 
-    if new_message is not None:
-        session.message = new_message
-    else:
-        del session.message
+        if new_message is not None:
+            session.message = new_message
 
-    if new_continuation is not None:
-        session.continuation = new_continuation
-    else:
-        del session.continuation
+        if new_continuation is not None:
+            session.continuation = new_continuation
 
-    raise KeyboardInterrupt
+        raise KeyboardInterrupt
+
+
+    def get_parser(self):
+        parser = DotCommandArgParser(
+            prog=self.name,
+            add_help=False,
+            description="Replace the standard prompts",
+        )
+
+        parser.add_argument("PROMPT", nargs="?", default=None)
+        parser.add_argument("CONTINUATION", nargs="?", default=None)
+
+        return parser
 
 
 @cmd(".mode")
-def _mode(cmd_args, session):
-    mode = cmd_args[0] if len(cmd_args) > 0 else "default"
-    session.mode = mode
+class _DotMode(DotCommand):
+    def execute(self, cmd_args, session):
+        c_args = self.parser.parse_args(cmd_args)
+        mode = c_args.MODE
+        
+        if mode is not None:
+            session.mode = mode
+        
+        raise KeyboardInterrupt
 
-    raise KeyboardInterrupt
+
+    def get_parser(self):
+        parser = DotCommandArgParser(
+            prog=self.name,
+            add_help=False,
+            description="Set the output mode",
+        )
+
+        parser.add_argument(
+            "MODE", 
+            nargs="?", 
+            default=None,
+            choices=get_valid_output_modes()
+        )
+
+        return parser
 
 
 @cmd(".output")
-def _output(cmd_args, session):
-    out = cmd_args[0] if len(cmd_args) > 0 else "stdout"
-    session.dest = out
+class _DotOutput(DotCommand):
+    def execute(self, cmd_args, session):
+        c_args = self.parser.parse_args(cmd_args)
+        dest = c_args.FILE
+        session.dest = dest
 
-    raise KeyboardInterrupt
+        raise KeyboardInterrupt
+
+
+    def get_parser(self):
+        parser = DotCommandArgParser(
+            prog=self.name,
+            add_help=False,
+            description="Send output to FILE or stdout if FILE is omitted",
+        )
+
+        parser.add_argument(
+            "FILE",
+            nargs="?",
+            default="stdout",
+            help="File to send output to"
+        )
+
+        return parser
 
 
 @cmd(".dump")
-def _dump(cmd_args, session):
-    table = cmd_args[0] if len(cmd_args) > 0 else None
-    connection = session.connection
+class _DotDump(DotCommand):
+    def execute(self, cmd_args, session):
+        c_args = self.parser.parse_args(cmd_args)
+        table_pattern = c_args.TABLE
+        data_only = c_args.data_only
+        connection = session.connection
 
-    if table is not None:
-        dump = ["BEGIN TRANSACTION;"]
-        sql = "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?"
-        schema = connection.execute(sql, (table,)).fetchone()
+        if table_pattern is not None:
+            table_sql = (
+                "SELECT name FROM sqlite_master "
+                "WHERE type = 'table' AND name LIKE ?"
+            )
+            dump = []
+            tables = connection.execute(table_sql, (table_pattern,)).fetchall()
 
-        if not schema:
-            print("Table {} not found".format(table))
-            raise KeyboardInterrupt
-        
-        dump.append(schema[0] + ";")
+            if not tables:
+                raise KeyboardInterrupt
 
-        tbl_info = connection.execute(
-            "SELECT * FROM pragma_table_info(?)", (table,)
+            if data_only is False:
+                dump.append("BEGIN TRANSACTION;") 
+
+            for table in tables:
+                table_name = table[0]
+
+                if data_only is False:
+                    schema_sql = (
+                        "SELECT sql FROM sqlite_master "
+                        "WHERE type = 'table' AND name = ?"
+                    )
+                    schema = connection.execute(
+                        schema_sql, (table_name,)
+                    ).fetchone()
+
+                    dump.append(schema[0] + ";")
+
+                tbl_info = connection.execute(
+                    "SELECT * FROM pragma_table_info(?)", (table_name,)
+                )
+                column_names = [str(row[1]) for row in tbl_info.fetchall()]
+                quotes = ",".join(
+                    ["'||quote(" + col + ")||'" for col in column_names]
+                )
+                insert_statements_sql = (
+                    "SELECT 'INSERT INTO {} VALUES(" + quotes + ");' FROM {}"
+                ).format(table_name, table_name)
+                insert_statements = connection.execute(insert_statements_sql)
+
+                dump.extend([s[0] for s in insert_statements.fetchall()])
+            
+            if data_only is False:
+                dump.append("COMMIT;")
+                
+            session.write_result("\n".join(dump), mode="meta")
+        else:
+            for line in session.connection.iterdump():
+                session.write_result(line, mode="meta")
+
+        raise KeyboardInterrupt
+
+
+    def get_parser(self):
+        parser = DotCommandArgParser(
+            prog=self.name,
+            add_help=False,
+            description="Render database content as SQL",
         )
-        column_names = [str(row[1]) for row in tbl_info.fetchall()]
-        insert_statements_sql = (
-            "SELECT 'INSERT INTO {} VALUES(" +
-            ",".join(["'||quote(" + col + ")||'" for col in column_names]) +
-            ");' FROM {}"
-        ).format(table, table)
-        insert_statements = connection.execute(insert_statements_sql)
 
-        dump.extend([s[0] for s in insert_statements.fetchall()])
-        dump.append("COMMIT;")
-        session.write_result("\n".join(dump), mode="meta")
-    else:
-        for line in session.connection.iterdump():
-            session.write_result(line, mode="meta")
+        parser.add_argument(
+            "--data-only", 
+            action="store_true",
+            help="Output INSERT statements only",
+        )
+        parser.add_argument(
+            "TABLE",
+            nargs="?",
+            help="A LIKE pattern specifying the table to dump",
+        )
+
+        return parser
+
+
+@cmd(".help")
+class _DotHelp(DotCommand):
+    def execute(self, cmd_args, session):
+        c_args = self.parser.parse_args(cmd_args)
+        topic_pattern = c_args.PATTERN
+        show_all = c_args.all or not topic_pattern
         
-    raise KeyboardInterrupt
+        if not topic_pattern.startswith("."):
+            topic_pattern = "." + topic_pattern
+
+        if show_all:
+            topics = sorted(COMMANDS.keys())
+        else:
+            topics = filter(
+                lambda c: c.startswith(topic_pattern), 
+                sorted(COMMANDS.keys())
+            )
+
+        if not topics:
+            eprint("Nothing matches '{}'".format(topic_pattern))
+            raise KeyboardInterrupt
+
+        for t in topics:
+            COMMANDS[t].parser.print_help(session.dest)
+
+        raise KeyboardInterrupt
+
+
+    def get_parser(self):
+        parser = DotCommandArgParser(
+            prog=self.name,
+            add_help=False,
+            description="Show help text for PATTERN",
+        )
+
+        parser.add_argument(
+            "PATTERN",
+            nargs="?",
+            help="Topic pattern to print help for",
+        )
+        parser.add_argument(
+            "--all",
+            action="store_true",
+        )
+
+        return parser

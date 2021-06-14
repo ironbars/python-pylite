@@ -130,10 +130,8 @@ class PyliteSqlResultWriter(object):
 
     @mode.setter
     def mode(self, new_mode):
-        valid_modes = list(OUTPUT_MODES.keys())
+        valid_modes = get_valid_output_modes()
         
-        valid_modes.remove("meta")
-
         if new_mode not in valid_modes:
             raise PyliteSqlResultWriterError("Invalid output mode")
 
@@ -154,10 +152,11 @@ class PyliteSqlResultWriter(object):
     def dest(self, new_dest):
         if new_dest == "stdout":
             self._dest = sys.stdout
-        else:
-            if not self._dest.closed and self._dest is not sys.stdout:
-                self._dest.close()
+            return
 
+        if self._dest is not sys.stdout and self._dest.closed is False:
+            self._dest.close()
+        else:
             self._dest = open(new_dest, "w")
 
 
@@ -182,3 +181,10 @@ def rows_to_dict(rows):
 
     return dict_data
 
+
+def get_valid_output_modes():
+    valid = list(OUTPUT_MODES.keys())
+
+    valid.remove("meta")
+
+    return sorted(valid)

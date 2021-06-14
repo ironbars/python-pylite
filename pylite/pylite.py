@@ -6,7 +6,6 @@ import sqlite3
 from .session import PylitePromptSession
 from .commands import handle_dot_command
 
-
 def main(database):
     session = PylitePromptSession(connection=sqlite3.connect(database))
 
