@@ -2,6 +2,9 @@ import sys
 import shlex
 import argparse
 
+from prompt_toolkit import print_formatted_text
+from prompt_toolkit.formatted_text import FormattedText
+
 from .input import PyliteSqlFileReader, PyliteSqlReaderError
 from .output import get_valid_output_modes
 
@@ -341,12 +344,12 @@ class _DotHelp(DotCommand):
         topic_pattern = c_args.PATTERN
         show_all = c_args.all or not topic_pattern
         
-        if not topic_pattern.startswith("."):
-            topic_pattern = "." + topic_pattern
-
         if show_all:
             topics = sorted(COMMANDS.keys())
         else:
+            if topic_pattern.startswith(".") is False:
+                topic_pattern = "." + topic_pattern
+
             topics = filter(
                 lambda c: c.startswith(topic_pattern), 
                 sorted(COMMANDS.keys())
@@ -357,7 +360,11 @@ class _DotHelp(DotCommand):
             raise KeyboardInterrupt
 
         for t in topics:
+            text = FormattedText([("#C560FF", t)])
+
+            print_formatted_text(text, file=session.dest)
             COMMANDS[t].parser.print_help(session.dest)
+            session.write_result("", mode="meta")
 
         raise KeyboardInterrupt
 
