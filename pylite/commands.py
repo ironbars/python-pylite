@@ -147,7 +147,7 @@ class _DotTables(DotCommand):
         table = c_args.TABLE
 
         if table is not None:
-            sql += "AND name LIKE ?"
+            sql += " AND name LIKE ?"
             result = session.connection.execute(sql, (table,))
         else:
             result = session.connection.execute(sql)

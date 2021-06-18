@@ -165,7 +165,7 @@ class PyliteSqlResultWriter(object):
         if self._dest is sys.stdout:
             return
 
-        if not self._dest.closed:
+        if self._dest.closed is False:
             self._dest.close()
 
         self._dest = sys.stdout
