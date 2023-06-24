@@ -13,6 +13,7 @@ def output_mode(mode):
         OUTPUT_MODES[mode] = func
 
         return func
+
     return wrapper
 
 
@@ -28,7 +29,7 @@ def _write_default(rows, writer):
 def _write_list(rows, writer):
     data = rows[1:]
     str_data = []
-    
+
     for row in data:
         str_data.append(writer.colsep.join(map(str, row)))
 
@@ -43,24 +44,20 @@ def _write_lines(rows, writer):
     justify = max(len(field) for field in fields)
 
     for row in dict_data:
-        lines = [
-            " ".join([f"{k:>{justify}}", "=", f"{v}"]) 
-            for k, v in row.items()
-        ]
+        lines = [" ".join([f"{k:>{justify}}", "=", f"{v}"]) for k, v in row.items()]
         row_as_lines = "\n".join(lines)
 
         line_data.append(row_as_lines)
 
     print("\n\n".join(line_data), file=writer.dest)
-    
+
 
 @output_mode("json")
 def _write_json(rows, writer):
     dict_data = rows_to_dict(rows)
 
     print(
-        "[" + ",\n".join(json.dumps(row) for row in dict_data) + "]",
-        file=writer.dest
+        "[" + ",\n".join(json.dumps(row) for row in dict_data) + "]", file=writer.dest
     )
 
 
@@ -79,8 +76,8 @@ def _write_python_list(rows, writer):
         print(row, file=writer.dest)
 
 
-# This is here so that all commands can have a common interface for printing 
-# data, which in turn ensures that all output goes to the same place (be it 
+# This is here so that all commands can have a common interface for printing
+# data, which in turn ensures that all output goes to the same place (be it
 # a file or stdout).
 @output_mode("meta")
 def _write_meta(rows, writer):
@@ -92,18 +89,11 @@ class PyliteSqlResultWriterError(Exception):
 
 
 class PyliteSqlResultWriter(object):
-    def __init__(
-        self, 
-        mode="default", 
-        dest="stdout",
-        colsep="|", 
-        rowsep="\n"
-    ):
+    def __init__(self, mode="default", dest="stdout", colsep="|", rowsep="\n"):
         self.mode = mode
         self.dest = dest
         self.colsep = colsep
         self.rowsep = rowsep
-
 
     def write_result(self, data, mode=None):
         if mode is not None:
@@ -122,31 +112,26 @@ class PyliteSqlResultWriter(object):
 
                 OUTPUT_MODES[output_mode](rows, self)
 
-        
     @property
     def mode(self):
         return self._mode
 
-
     @mode.setter
     def mode(self, new_mode):
         valid_modes = get_valid_output_modes()
-        
+
         if new_mode not in valid_modes:
             raise PyliteSqlResultWriterError("Invalid output mode")
 
         self._mode = new_mode
 
-
     @mode.deleter
     def mode(self):
         self._mode = "default"
 
-
     @property
     def dest(self):
         return self._dest
-
 
     @dest.setter
     def dest(self, new_dest):
@@ -158,7 +143,6 @@ class PyliteSqlResultWriter(object):
             self._dest.close()
         else:
             self._dest = open(new_dest, "w")
-
 
     @dest.deleter
     def dest(self):

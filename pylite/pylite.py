@@ -6,6 +6,7 @@ import sqlite3
 from .session import PylitePromptSession
 from .commands import handle_dot_command
 
+
 def main(database):
     session = PylitePromptSession(connection=sqlite3.connect(database))
 
@@ -28,5 +29,4 @@ def main(database):
             else:
                 session.write_result(messages)
 
-    print('GoodBye!')
-
+    print("GoodBye!")

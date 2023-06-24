@@ -19,7 +19,7 @@ class DotCommandArgParser(argparse.ArgumentParser):
 
 
 def eprint(*args, **kwargs):
-    print(*args, file=sys.stdout, **kwargs)
+    print(*args, file=sys.stderr, **kwargs)
 
 
 def handle_dot_command(text, session):
@@ -40,6 +40,7 @@ def cmd(name):
         COMMANDS[name] = cls(name)
 
         return cls
+
     return wrapper
 
 
@@ -48,10 +49,8 @@ class DotCommand(object):
         self.name = name
         self.parser = self.get_parser()
 
-    
     def execute(self, cmd_args, session):
         pass
-
 
     def get_parser(self):
         pass
@@ -61,11 +60,10 @@ class DotCommand(object):
 class _DotQuit(DotCommand):
     def execute(self, cmd_args, session):
         raise EOFError
-    
 
     def get_parser(self):
         parser = DotCommandArgParser(
-            prog=self.name, 
+            prog=self.name,
             usage="%(prog)s",
             description="Exit the program",
             add_help=False,
@@ -90,7 +88,6 @@ class _DotRead(DotCommand):
             eprint("Error: incomplete statement")
 
         raise KeyboardInterrupt
-
 
     def get_parser(self):
         parser = DotCommandArgParser(
@@ -122,17 +119,16 @@ class _DotSchema(DotCommand):
 
         raise KeyboardInterrupt
 
-
     def get_parser(self):
         parser = DotCommandArgParser(
-            prog=self.name, 
+            prog=self.name,
             add_help=False,
             description="Show the CREATE statements matching PATTERN",
         )
 
         parser.add_argument(
-            "PATTERN", 
-            nargs="?", 
+            "PATTERN",
+            nargs="?",
             default=None,
         )
 
@@ -156,7 +152,6 @@ class _DotTables(DotCommand):
             session.write_result(row[0], mode="meta")
 
         raise KeyboardInterrupt
-
 
     def get_parser(self):
         parser = DotCommandArgParser(
@@ -185,7 +180,6 @@ class _DotPrompt(DotCommand):
 
         raise KeyboardInterrupt
 
-
     def get_parser(self):
         parser = DotCommandArgParser(
             prog=self.name,
@@ -204,12 +198,11 @@ class _DotMode(DotCommand):
     def execute(self, cmd_args, session):
         c_args = self.parser.parse_args(cmd_args)
         mode = c_args.MODE
-        
+
         if mode is not None:
             session.mode = mode
-        
-        raise KeyboardInterrupt
 
+        raise KeyboardInterrupt
 
     def get_parser(self):
         parser = DotCommandArgParser(
@@ -219,10 +212,7 @@ class _DotMode(DotCommand):
         )
 
         parser.add_argument(
-            "MODE", 
-            nargs="?", 
-            default=None,
-            choices=get_valid_output_modes()
+            "MODE", nargs="?", default=None, choices=get_valid_output_modes()
         )
 
         return parser
@@ -237,7 +227,6 @@ class _DotOutput(DotCommand):
 
         raise KeyboardInterrupt
 
-
     def get_parser(self):
         parser = DotCommandArgParser(
             prog=self.name,
@@ -246,10 +235,7 @@ class _DotOutput(DotCommand):
         )
 
         parser.add_argument(
-            "FILE",
-            nargs="?",
-            default="stdout",
-            help="File to send output to"
+            "FILE", nargs="?", default="stdout", help="File to send output to"
         )
 
         return parser
@@ -265,8 +251,7 @@ class _DotDump(DotCommand):
 
         if table_pattern is not None:
             table_sql = (
-                "SELECT name FROM sqlite_master "
-                "WHERE type = 'table' AND name LIKE ?"
+                "SELECT name FROM sqlite_master " "WHERE type = 'table' AND name LIKE ?"
             )
             dump = []
             tables = connection.execute(table_sql, (table_pattern,)).fetchall()
@@ -275,7 +260,7 @@ class _DotDump(DotCommand):
                 raise KeyboardInterrupt
 
             if data_only is False:
-                dump.append("BEGIN TRANSACTION;") 
+                dump.append("BEGIN TRANSACTION;")
 
             for table in tables:
                 table_name = table[0]
@@ -285,9 +270,7 @@ class _DotDump(DotCommand):
                         "SELECT sql FROM sqlite_master "
                         "WHERE type = 'table' AND name = ?"
                     )
-                    schema = connection.execute(
-                        schema_sql, (table_name,)
-                    ).fetchone()
+                    schema = connection.execute(schema_sql, (table_name,)).fetchone()
 
                     dump.append(schema[0] + ";")
 
@@ -295,26 +278,23 @@ class _DotDump(DotCommand):
                     "SELECT * FROM pragma_table_info(?)", (table_name,)
                 )
                 column_names = [str(row[1]) for row in tbl_info.fetchall()]
-                quotes = ",".join(
-                    ["'||quote(" + col + ")||'" for col in column_names]
-                )
+                quotes = ",".join(["'||quote(" + col + ")||'" for col in column_names])
                 insert_statements_sql = (
                     "SELECT 'INSERT INTO {} VALUES(" + quotes + ");' FROM {}"
                 ).format(table_name, table_name)
                 insert_statements = connection.execute(insert_statements_sql)
 
                 dump.extend([s[0] for s in insert_statements.fetchall()])
-            
+
             if data_only is False:
                 dump.append("COMMIT;")
-                
+
             session.write_result("\n".join(dump), mode="meta")
         else:
             for line in session.connection.iterdump():
                 session.write_result(line, mode="meta")
 
         raise KeyboardInterrupt
-
 
     def get_parser(self):
         parser = DotCommandArgParser(
@@ -324,7 +304,7 @@ class _DotDump(DotCommand):
         )
 
         parser.add_argument(
-            "--data-only", 
+            "--data-only",
             action="store_true",
             help="Output INSERT statements only",
         )
@@ -343,7 +323,7 @@ class _DotHelp(DotCommand):
         c_args = self.parser.parse_args(cmd_args)
         topic_pattern = c_args.PATTERN
         show_all = c_args.all or not topic_pattern
-        
+
         if show_all:
             topics = sorted(COMMANDS.keys())
         else:
@@ -351,8 +331,7 @@ class _DotHelp(DotCommand):
                 topic_pattern = "." + topic_pattern
 
             topics = filter(
-                lambda c: c.startswith(topic_pattern), 
-                sorted(COMMANDS.keys())
+                lambda c: c.startswith(topic_pattern), sorted(COMMANDS.keys())
             )
 
         if not topics:
@@ -367,7 +346,6 @@ class _DotHelp(DotCommand):
             session.write_result("", mode="meta")
 
         raise KeyboardInterrupt
-
 
     def get_parser(self):
         parser = DotCommandArgParser(

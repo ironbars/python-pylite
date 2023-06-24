@@ -7,10 +7,9 @@ class PyliteSqlReaderError(Exception):
     pass
 
 
-class PyliteSqlReader():
+class PyliteSqlReader:
     def __init__(self, source=None):
         self.source = source
-
 
     def build_complete_statement(self, text, sql_src):
         statement_components = []
@@ -29,10 +28,9 @@ class PyliteSqlReader():
 
         return " ".join(statement_components)
 
-
     def get_next(self, sql_src):
         pass
-    
+
 
 class PyliteSqlFileReader(PyliteSqlReader):
     def __init__(self, source):
@@ -42,7 +40,6 @@ class PyliteSqlFileReader(PyliteSqlReader):
             raise PyliteSqlReaderError("File doesn't exist or is not readable")
 
         super().__init__(source)
-
 
     def __iter__(self):
         with open(self.source, "r") as sf:
@@ -56,7 +53,6 @@ class PyliteSqlFileReader(PyliteSqlReader):
                     yield self.build_complete_statement(line, sql_gen)
             except StopIteration:
                 raise PyliteSqlReaderError("Incomplete statement")
-
 
     def get_next(self, sql_src):
         return next(sql_src)
@@ -75,7 +71,6 @@ class PyliteSqlPromptReader(PyliteSqlReader):
 
         super().__init__(source)
 
-
     def prompt(self):
         text = self.source.prompt(self.message)
 
@@ -84,7 +79,5 @@ class PyliteSqlPromptReader(PyliteSqlReader):
 
         return self.build_complete_statement(text, self.source)
 
-
     def get_next(self, sql_src):
         return sql_src.prompt(self.continuation)
-
