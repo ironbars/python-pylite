@@ -3,12 +3,30 @@
 import sqlite3
 import sys
 
+from prompt_toolkit import print_formatted_text, HTML
+
 from pylite.commands import handle_dot_command
 from pylite.session import PylitePromptSession
 
 
+def welcome(database: str) -> None:
+    if database == ":memory:":
+        db_msg = "You are connected to a <b>transient, in memory database</b>."
+    else:
+        db_msg = ""
+
+    base_msg = "Welcome to <ansigreen>pylite</ansigreen>!"
+    usage_msg = "Enter \"<violet>.help</violet>\" for usage hints."
+
+    msg = HTML("\n".join([base_msg, usage_msg, db_msg]))
+
+    print_formatted_text(msg)
+    
+
 def repl(database):
     session = PylitePromptSession(connection=sqlite3.connect(database))
+
+    welcome(database)
 
     while True:
         try:
