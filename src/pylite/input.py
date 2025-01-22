@@ -1,5 +1,4 @@
 import os
-import math
 from sqlite3 import complete_statement
 
 

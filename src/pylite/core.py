@@ -1,10 +1,10 @@
 #!/usr/bin/python3
 
-import sys
 import sqlite3
+import sys
 
-from .session import PylitePromptSession
-from .commands import handle_dot_command
+from pylite.commands import handle_dot_command
+from pylite.session import PylitePromptSession
 
 
 def repl(database):

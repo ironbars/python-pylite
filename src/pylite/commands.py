@@ -1,12 +1,12 @@
-import sys
-import shlex
 import argparse
+import shlex
+import sys
 
 from prompt_toolkit import print_formatted_text
 from prompt_toolkit.formatted_text import FormattedText
 
-from .input import PyliteSqlFileReader, PyliteSqlReaderError
-from .output import get_valid_output_modes
+from pylite.input import PyliteSqlFileReader, PyliteSqlReaderError
+from pylite.output import get_valid_output_modes
 
 
 COMMANDS = dict()

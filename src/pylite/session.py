@@ -3,8 +3,8 @@ from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.styles import Style
 from pygments.lexers.sql import SqlLexer
 
-from .input import PyliteSqlPromptReader
-from .output import PyliteSqlResultWriter
+from pylite.input import PyliteSqlPromptReader
+from pylite.output import PyliteSqlResultWriter
 
 
 class PylitePromptSession(object):
