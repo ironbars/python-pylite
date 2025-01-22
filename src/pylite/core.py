@@ -1,5 +1,3 @@
-#!/usr/bin/python3
-
 import sqlite3
 import sys
 
@@ -9,21 +7,28 @@ from pylite.commands import handle_dot_command
 from pylite.session import PylitePromptSession
 
 
-def welcome(database: str) -> None:
+def generate_welcome_message(database: str) -> HTML:
+    base_msg = "Welcome to <ansigreen>pylite</ansigreen>!"
+    usage_msg = "Enter \"<violet>.help</violet>\" for usage hints."
+    
     if database == ":memory:":
         db_msg = "You are connected to a <b>transient, in memory database</b>."
     else:
-        db_msg = ""
+        db_msg = f"Connected to database: <b>{database}</b>."
 
-    base_msg = "Welcome to <ansigreen>pylite</ansigreen>!"
-    usage_msg = "Enter \"<violet>.help</violet>\" for usage hints."
+    parts = [base_msg, usage_msg, db_msg]
+    full_msg = "\n".join(filter(None, parts))
 
-    msg = HTML("\n".join([base_msg, usage_msg, db_msg]))
+    return HTML(full_msg)
+
+
+def welcome(database: str) -> None:
+    msg = generate_welcome_message(database)
 
     print_formatted_text(msg)
     
 
-def repl(database):
+def repl(database: str) -> None:
     session = PylitePromptSession(connection=sqlite3.connect(database))
 
     welcome(database)
