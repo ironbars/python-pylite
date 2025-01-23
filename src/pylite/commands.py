@@ -1,67 +1,85 @@
 import argparse
 import shlex
 import sys
+from collections.abc import KeysView
+from typing import Any, Callable, Never, Type, TypeVar
 
 from prompt_toolkit import print_formatted_text
 from prompt_toolkit.formatted_text import FormattedText
 
+from pylite.exceptions import REPLResetEvent
 from pylite.input import PyliteSqlFileReader, PyliteSqlReaderError
 from pylite.output import get_valid_output_modes
-
-
-COMMANDS = dict()
+from pylite.session import PylitePromptSession
 
 
 class DotCommandArgParser(argparse.ArgumentParser):
-    def error(self, message):
+    def error(self, message: str) -> Never:
         self.print_usage(sys.stderr)
-        raise KeyboardInterrupt
+        raise REPLResetEvent
 
 
-def eprint(*args, **kwargs):
+class DotCommand(object):
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.parser = self.get_parser()
+
+    def execute(self, cmd_args: list[str], session: PylitePromptSession) -> None:
+        pass
+
+    def get_parser(self):
+        pass
+
+
+class CommandRegistry:
+    def __init__(self) -> None:
+        self._commands: dict[str, DotCommand] = dict()
+
+    def register(self, name: str, command: DotCommand) -> None:
+        self._commands[name] = command
+
+    def get(self, name: str) -> DotCommand:
+        return self._commands[name]
+
+    def get_registered_commands(self) -> KeysView[str]:
+        return self._commands.keys()
+
+
+cmd_registry = CommandRegistry()
+T = TypeVar("T", bound=DotCommand)
+
+
+def eprint(*args: Any, **kwargs: Any) -> None:
     print(*args, file=sys.stderr, **kwargs)
 
 
-def handle_dot_command(text, session):
+def handle_dot_command(text: str, session: PylitePromptSession):
     tokens = shlex.split(text)
     command = tokens[0]
     cmd_args = tokens[1:]
 
     try:
-        command_obj = COMMANDS[command]
-        command_obj.execute(cmd_args, session)
+        cmd_registry.get(command).execute(cmd_args, session)
     except KeyError:
-        eprint("Error: unrecognized command: {}".format(command))
-        raise KeyboardInterrupt
+        eprint(f"Error: unrecognized command: {command}")
+        raise REPLResetEvent
 
 
-def cmd(name):
-    def wrapper(cls):
-        COMMANDS[name] = cls(name)
+def cmd(name: str) -> Callable[[Type[T]], Type[T]]:
+    def wrapper(cls: Type[T]) -> Type[T]:
+        cmd_registry.register(name, cls(name))
 
         return cls
 
     return wrapper
 
 
-class DotCommand(object):
-    def __init__(self, name):
-        self.name = name
-        self.parser = self.get_parser()
-
-    def execute(self, cmd_args, session):
-        pass
-
-    def get_parser(self):
-        pass
-
-
 @cmd(".quit")
 class _DotQuit(DotCommand):
-    def execute(self, cmd_args, session):
+    def execute(self, cmd_args: list[str], session: PylitePromptSession) -> None:
         raise EOFError
 
-    def get_parser(self):
+    def get_parser(self) -> DotCommandArgParser:
         parser = DotCommandArgParser(
             prog=self.name,
             usage="%(prog)s",
@@ -74,7 +92,7 @@ class _DotQuit(DotCommand):
 
 @cmd(".read")
 class _DotRead(DotCommand):
-    def execute(self, cmd_args, session):
+    def execute(self, cmd_args: list[str], session: PylitePromptSession) -> None:
         c_args = self.parser.parse_args(cmd_args)
         sql_file = c_args.FILE
         reader = PyliteSqlFileReader(sql_file)
@@ -87,9 +105,9 @@ class _DotRead(DotCommand):
         except PyliteSqlReaderError:
             eprint("Error: incomplete statement")
 
-        raise KeyboardInterrupt
+        raise REPLResetEvent
 
-    def get_parser(self):
+    def get_parser(self) -> DotCommandArgParser:
         parser = DotCommandArgParser(
             prog=self.name,
             description="Read input from FILE",
@@ -103,7 +121,7 @@ class _DotRead(DotCommand):
 
 @cmd(".schema")
 class _DotSchema(DotCommand):
-    def execute(self, cmd_args, session):
+    def execute(self, cmd_args: list[str], session: PylitePromptSession) -> None:
         c_args = self.parser.parse_args(cmd_args)
         sql = "SELECT sql from sqlite_master WHERE type = 'table'"
         pattern = c_args.PATTERN
@@ -117,9 +135,9 @@ class _DotSchema(DotCommand):
         for schema in result.fetchall():
             session.write_result(schema[0] + ";", mode="meta")
 
-        raise KeyboardInterrupt
+        raise REPLResetEvent
 
-    def get_parser(self):
+    def get_parser(self) -> DotCommandArgParser:
         parser = DotCommandArgParser(
             prog=self.name,
             add_help=False,
@@ -137,7 +155,7 @@ class _DotSchema(DotCommand):
 
 @cmd(".tables")
 class _DotTables(DotCommand):
-    def execute(self, cmd_args, session):
+    def execute(self, cmd_args: list[str], session: PylitePromptSession) -> None:
         c_args = self.parser.parse_args(cmd_args)
         sql = "SELECT name FROM sqlite_master WHERE type = 'table'"
         table = c_args.TABLE
@@ -151,9 +169,9 @@ class _DotTables(DotCommand):
         for row in result.fetchall():
             session.write_result(row[0], mode="meta")
 
-        raise KeyboardInterrupt
+        raise REPLResetEvent
 
-    def get_parser(self):
+    def get_parser(self) -> DotCommandArgParser:
         parser = DotCommandArgParser(
             prog=self.name,
             add_help=False,
@@ -167,7 +185,7 @@ class _DotTables(DotCommand):
 
 @cmd(".prompt")
 class _DotPrompt(DotCommand):
-    def execute(self, cmd_args, session):
+    def execute(self, cmd_args: list[str], session: PylitePromptSession) -> None:
         c_args = self.parser.parse_args(cmd_args)
         new_message = c_args.PROMPT
         new_continuation = c_args.CONTINUATION
@@ -178,9 +196,9 @@ class _DotPrompt(DotCommand):
         if new_continuation is not None:
             session.continuation = new_continuation
 
-        raise KeyboardInterrupt
+        raise REPLResetEvent
 
-    def get_parser(self):
+    def get_parser(self) -> DotCommandArgParser:
         parser = DotCommandArgParser(
             prog=self.name,
             add_help=False,
@@ -195,16 +213,16 @@ class _DotPrompt(DotCommand):
 
 @cmd(".mode")
 class _DotMode(DotCommand):
-    def execute(self, cmd_args, session):
+    def execute(self, cmd_args: list[str], session: PylitePromptSession) -> None:
         c_args = self.parser.parse_args(cmd_args)
         mode = c_args.MODE
 
         if mode is not None:
             session.mode = mode
 
-        raise KeyboardInterrupt
+        raise REPLResetEvent
 
-    def get_parser(self):
+    def get_parser(self) -> DotCommandArgParser:
         parser = DotCommandArgParser(
             prog=self.name,
             add_help=False,
@@ -220,14 +238,14 @@ class _DotMode(DotCommand):
 
 @cmd(".output")
 class _DotOutput(DotCommand):
-    def execute(self, cmd_args, session):
+    def execute(self, cmd_args: list[str], session: PylitePromptSession) -> None:
         c_args = self.parser.parse_args(cmd_args)
         dest = c_args.FILE
         session.dest = dest
 
-        raise KeyboardInterrupt
+        raise REPLResetEvent
 
-    def get_parser(self):
+    def get_parser(self) -> DotCommandArgParser:
         parser = DotCommandArgParser(
             prog=self.name,
             add_help=False,
@@ -243,7 +261,7 @@ class _DotOutput(DotCommand):
 
 @cmd(".dump")
 class _DotDump(DotCommand):
-    def execute(self, cmd_args, session):
+    def execute(self, cmd_args: list[str], session: PylitePromptSession) -> None:
         c_args = self.parser.parse_args(cmd_args)
         table_pattern = c_args.TABLE
         data_only = c_args.data_only
@@ -251,13 +269,13 @@ class _DotDump(DotCommand):
 
         if table_pattern is not None:
             table_sql = (
-                "SELECT name FROM sqlite_master " "WHERE type = 'table' AND name LIKE ?"
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE ?"
             )
             dump = []
             tables = connection.execute(table_sql, (table_pattern,)).fetchall()
 
             if not tables:
-                raise KeyboardInterrupt
+                raise REPLResetEvent
 
             if data_only is False:
                 dump.append("BEGIN TRANSACTION;")
@@ -280,8 +298,10 @@ class _DotDump(DotCommand):
                 column_names = [str(row[1]) for row in tbl_info.fetchall()]
                 quotes = ",".join(["'||quote(" + col + ")||'" for col in column_names])
                 insert_statements_sql = (
-                    "SELECT 'INSERT INTO {} VALUES(" + quotes + ");' FROM {}"
-                ).format(table_name, table_name)
+                    f"SELECT 'INSERT INTO {table_name} VALUES("
+                    + quotes
+                    + ");' FROM {table_name}"
+                )
                 insert_statements = connection.execute(insert_statements_sql)
 
                 dump.extend([s[0] for s in insert_statements.fetchall()])
@@ -294,9 +314,9 @@ class _DotDump(DotCommand):
             for line in session.connection.iterdump():
                 session.write_result(line, mode="meta")
 
-        raise KeyboardInterrupt
+        raise REPLResetEvent
 
-    def get_parser(self):
+    def get_parser(self) -> DotCommandArgParser:
         parser = DotCommandArgParser(
             prog=self.name,
             add_help=False,
@@ -319,35 +339,38 @@ class _DotDump(DotCommand):
 
 @cmd(".help")
 class _DotHelp(DotCommand):
-    def execute(self, cmd_args, session):
+    def execute(self, cmd_args: list[str], session: PylitePromptSession) -> None:
         c_args = self.parser.parse_args(cmd_args)
         topic_pattern = c_args.PATTERN
         show_all = c_args.all or not topic_pattern
 
         if show_all:
-            topics = sorted(COMMANDS.keys())
+            topics = sorted(cmd_registry.get_registered_commands())
         else:
             if topic_pattern.startswith(".") is False:
                 topic_pattern = "." + topic_pattern
 
-            topics = filter(
-                lambda c: c.startswith(topic_pattern), sorted(COMMANDS.keys())
+            topics = list(
+                filter(
+                    lambda c: c.startswith(topic_pattern),
+                    sorted(cmd_registry.get_registered_commands()),
+                )
             )
 
         if not topics:
-            eprint("Nothing matches '{}'".format(topic_pattern))
-            raise KeyboardInterrupt
+            eprint(f"Nothing matches '{topic_pattern}'")
+            raise REPLResetEvent
 
         for t in topics:
             text = FormattedText([("#C560FF", t)])
 
             print_formatted_text(text, file=session.dest)
-            COMMANDS[t].parser.print_help(session.dest)
+            cmd_registry.get(t).parser.print_help(session.dest)
             session.write_result("", mode="meta")
 
-        raise KeyboardInterrupt
+        raise REPLResetEvent
 
-    def get_parser(self):
+    def get_parser(self) -> DotCommandArgParser:
         parser = DotCommandArgParser(
             prog=self.name,
             add_help=False,

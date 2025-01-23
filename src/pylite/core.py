@@ -4,6 +4,7 @@ import sys
 from prompt_toolkit import print_formatted_text, HTML
 
 from pylite.commands import handle_dot_command
+from pylite.exceptions import REPLResetEvent
 from pylite.session import PylitePromptSession
 
 
@@ -39,6 +40,8 @@ def repl(database: str) -> None:
 
             if text.startswith("."):
                 handle_dot_command(text, session)
+        except REPLResetEvent:
+            continue # Normal app execution
         except KeyboardInterrupt:
             continue  # Control-C pressed. Try again.
         except EOFError:
