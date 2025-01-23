@@ -1,0 +1,16 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.2
+    hooks:
+      - id: ruff
+      - id: ruff-format
+  #- repo: local
+  #  hooks:
+  #    - id: mypy
+  #      name: mypy
+  #      entry: "./run-mypy"
+  #      language: system
+  #      types:
+  #        - python
+  #      require_serial: true
+  #      verbose: true
