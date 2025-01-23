@@ -1,7 +1,6 @@
 import argparse
 import shlex
 import sys
-from collections.abc import KeysView
 from typing import Any, Callable, Never, Type, TypeVar
 
 from prompt_toolkit import print_formatted_text
@@ -25,10 +24,10 @@ class DotCommand(object):
         self.parser = self.get_parser()
 
     def execute(self, cmd_args: list[str], session: PylitePromptSession) -> None:
-        pass
+        raise NotImplementedError
 
-    def get_parser(self):
-        pass
+    def get_parser(self) -> DotCommandArgParser:
+        raise NotImplementedError
 
 
 class CommandRegistry:
@@ -41,8 +40,11 @@ class CommandRegistry:
     def get(self, name: str) -> DotCommand:
         return self._commands[name]
 
-    def get_registered_commands(self) -> KeysView[str]:
-        return self._commands.keys()
+    def get_all(self) -> list[str]:
+        return list(self._commands.keys())
+
+    def __contains__(self, name: str) -> bool:
+        return name in self._commands
 
 
 cmd_registry = CommandRegistry()
@@ -345,17 +347,14 @@ class _DotHelp(DotCommand):
         show_all = c_args.all or not topic_pattern
 
         if show_all:
-            topics = sorted(cmd_registry.get_registered_commands())
+            topics = sorted(cmd_registry.get_all())
         else:
-            if topic_pattern.startswith(".") is False:
+            if not topic_pattern.startswith("."):
                 topic_pattern = "." + topic_pattern
 
-            topics = list(
-                filter(
-                    lambda c: c.startswith(topic_pattern),
-                    sorted(cmd_registry.get_registered_commands()),
-                )
-            )
+            topics = [
+                c for c in cmd_registry.get_all() if c.startswith(topic_pattern.lower())
+            ]
 
         if not topics:
             eprint(f"Nothing matches '{topic_pattern}'")
