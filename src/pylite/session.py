@@ -9,7 +9,7 @@ from pygments.lexers.sql import SqlLexer
 from pylite.input import (
     DEFAULT_PROMPT_CONTINUATION,
     DEFAULT_PROMPT_MESSAGE,
-    PyliteSqlPromptReader,
+    SQLPromptReader,
 )
 from pylite.output import PyliteSqlResultWriter
 
@@ -28,7 +28,7 @@ class PylitePromptSession(object):
             style=self.style,
             include_default_pygments_style=False,
         )
-        self.reader = PyliteSqlPromptReader(self.session)
+        self.reader = SQLPromptReader(self.session)
         self.writer = PyliteSqlResultWriter()
 
     def prompt(self) -> str:

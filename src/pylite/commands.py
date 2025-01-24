@@ -6,8 +6,8 @@ from typing import Any, Callable, Never, Type, TypeVar
 from prompt_toolkit import print_formatted_text
 from prompt_toolkit.formatted_text import FormattedText
 
-from pylite.exceptions import REPLResetEvent
-from pylite.input import PyliteSqlFileReader, PyliteSqlReaderError
+from pylite.exceptions import REPLResetEvent, SQLReaderError
+from pylite.input import SQLFileReader
 from pylite.output import get_valid_output_modes
 from pylite.session import PylitePromptSession
 
@@ -97,14 +97,14 @@ class _DotRead(DotCommand):
     def execute(self, cmd_args: list[str], session: PylitePromptSession) -> None:
         c_args = self.parser.parse_args(cmd_args)
         sql_file = c_args.FILE
-        reader = PyliteSqlFileReader(sql_file)
+        reader = SQLFileReader(sql_file)
 
         try:
             for sql in reader:
                 result = session.connection.execute(sql)
 
                 session.write_result(result)
-        except PyliteSqlReaderError:
+        except SQLReaderError:
             eprint("Error: incomplete statement")
 
         raise REPLResetEvent

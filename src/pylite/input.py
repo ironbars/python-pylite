@@ -11,7 +11,7 @@ DEFAULT_PROMPT_MESSAGE = "pylite> "
 DEFAULT_PROMPT_CONTINUATION = "   ...> "
 
 
-class PyliteSqlReader:
+class SQLReader:
     def __init__(self, source: Optional[Any] = None) -> None:
         self.source = source
 
@@ -30,7 +30,7 @@ class PyliteSqlReader:
         raise NotImplementedError
 
 
-class PyliteSqlFileReader(PyliteSqlReader):
+class SQLFileReader(SQLReader):
     def __init__(self, source: str | Path) -> None:
         path = Path(source)
 
@@ -50,7 +50,7 @@ class PyliteSqlFileReader(PyliteSqlReader):
         return next(sql_src)
 
 
-class PyliteSqlPromptReader(PyliteSqlReader):
+class SQLPromptReader(SQLReader):
     def __init__(
         self,
         source: PromptSession,
