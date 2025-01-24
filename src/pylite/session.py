@@ -6,7 +6,11 @@ from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.styles import Style
 from pygments.lexers.sql import SqlLexer
 
-from pylite.input import PyliteSqlPromptReader
+from pylite.input import (
+    DEFAULT_PROMPT_CONTINUATION,
+    DEFAULT_PROMPT_MESSAGE,
+    PyliteSqlPromptReader,
+)
 from pylite.output import PyliteSqlResultWriter
 
 
@@ -45,7 +49,7 @@ class PylitePromptSession(object):
 
     @message.deleter
     def message(self) -> None:
-        self.reader.message = "pylite> "
+        self.reader.message = DEFAULT_PROMPT_MESSAGE
 
     @property
     def continuation(self) -> str:
@@ -57,7 +61,7 @@ class PylitePromptSession(object):
 
     @continuation.deleter
     def continuation(self) -> None:
-        self.reader.continuation = "   ...> "
+        self.reader.continuation = DEFAULT_PROMPT_CONTINUATION
 
     @property
     def mode(self) -> str:

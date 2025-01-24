@@ -4,3 +4,7 @@ class PyliteException(Exception):
 
 class REPLResetEvent(PyliteException):
     pass
+
+
+class SQLReaderError(PyliteException):
+    pass

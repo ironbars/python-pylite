@@ -1,42 +1,41 @@
-import os
+from collections.abc import Iterable
+from pathlib import Path
 from sqlite3 import complete_statement
+from typing import Any, Optional
 
+from prompt_toolkit import PromptSession
 
-class PyliteSqlReaderError(Exception):
-    pass
+from pylite.exceptions import SQLReaderError
+
+DEFAULT_PROMPT_MESSAGE = "pylite> "
+DEFAULT_PROMPT_CONTINUATION = "   ...> "
 
 
 class PyliteSqlReader:
-    def __init__(self, source=None):
+    def __init__(self, source: Optional[Any] = None) -> None:
         self.source = source
 
-    def build_complete_statement(self, text, sql_src):
-        statement_components = []
-        statement_terminated = complete_statement(text)
+    def build_complete_statement(self, text: str, sql_src: Iterable[str]) -> str:
+        statement_components = [text]
 
-        if statement_terminated:
-            return text
-
-        while statement_terminated is False:
-            statement_components.append(text)
-
-            if complete_statement(text):
-                statement_terminated = True
-            else:
-                text = self.get_next(sql_src)
+        while not complete_statement(" ".join(statement_components)):
+            try:
+                statement_components.append(self.get_next(sql_src))
+            except StopIteration:
+                raise SQLReaderError("Incomplete statement")
 
         return " ".join(statement_components)
 
-    def get_next(self, sql_src):
-        pass
+    def get_next(self, sql_src: Any):
+        raise NotImplementedError
 
 
 class PyliteSqlFileReader(PyliteSqlReader):
-    def __init__(self, source):
-        self.sql = []
+    def __init__(self, source: str | Path) -> None:
+        path = Path(source)
 
-        if not os.path.exists(source):
-            raise PyliteSqlReaderError("File doesn't exist or is not readable")
+        if not path.exists():
+            raise SQLReaderError(f"File '{source}' doesn't exist or is not readable")
 
         super().__init__(source)
 
@@ -44,33 +43,26 @@ class PyliteSqlFileReader(PyliteSqlReader):
         with open(self.source, "r") as sf:
             sql_gen = (line.split("--")[0].strip() for line in sf)
 
-            try:
-                for line in sql_gen:
-                    if not line:
-                        continue
+            for line in sql_gen:
+                yield self.build_complete_statement(line, sql_gen)
 
-                    yield self.build_complete_statement(line, sql_gen)
-            except StopIteration:
-                raise PyliteSqlReaderError("Incomplete statement")
-
-    def get_next(self, sql_src):
+    def get_next(self, sql_src: Iterable[str]) -> str:
         return next(sql_src)
-
-    # Not quite sure the use case of this, but I kind of like having it here
-    def load_sql(self):
-        self.sql = [line for line in self]
-
-        return self.sql
 
 
 class PyliteSqlPromptReader(PyliteSqlReader):
-    def __init__(self, source, message="pylite> ", continuation="   ...> "):
+    def __init__(
+        self,
+        source: PromptSession,
+        message: str = DEFAULT_PROMPT_MESSAGE,
+        continuation: str = DEFAULT_PROMPT_CONTINUATION,
+    ) -> None:
         self.message = message
         self.continuation = continuation
 
         super().__init__(source)
 
-    def prompt(self):
+    def prompt(self) -> str:
         text = self.source.prompt(self.message)
 
         if text.startswith("."):
@@ -78,5 +70,5 @@ class PyliteSqlPromptReader(PyliteSqlReader):
 
         return self.build_complete_statement(text, self.source)
 
-    def get_next(self, sql_src):
+    def get_next(self, sql_src: PromptSession) -> str:
         return sql_src.prompt(self.continuation)
