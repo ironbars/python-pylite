@@ -29,7 +29,7 @@ class SQLResultWriter:
 
         if output_mode == "meta":
             print(data, file=self.dest)
-        else:
+        elif isinstance(data, Cursor):  # to appease mypy
             rows = data.fetchall()
 
             if len(rows) > 0:
@@ -37,6 +37,8 @@ class SQLResultWriter:
                 rows = [fields] + rows
 
                 OUTPUT_MODES[output_mode](rows, self)
+        else:  # should never get here
+            raise TypeError("Invalid data type provided to write_result()")
 
     @property
     def mode(self) -> str:
