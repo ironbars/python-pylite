@@ -8,3 +8,7 @@ class REPLResetEvent(PyliteException):
 
 class SQLReaderError(PyliteException):
     pass
+
+
+class SQLResultWriterError(PyliteException):
+    pass
