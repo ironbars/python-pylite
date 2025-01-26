@@ -1,3 +1,4 @@
+from io import TextIO
 from sqlite3 import Connection
 from typing import Any
 
@@ -76,7 +77,7 @@ class PylitePromptSession(object):
         del self.writer.mode
 
     @property
-    def dest(self) -> str:
+    def dest(self) -> TextIO:
         return self.writer.dest
 
     @dest.setter
