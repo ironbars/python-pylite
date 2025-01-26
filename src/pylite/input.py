@@ -1,4 +1,4 @@
-from collections.abc import Iterable
+from collections.abc import Iterator
 from pathlib import Path
 from sqlite3 import complete_statement
 from typing import Any, Optional
@@ -15,7 +15,7 @@ class SQLReader:
     def __init__(self, source: Optional[Any] = None) -> None:
         self.source = source
 
-    def build_complete_statement(self, text: str, sql_src: Iterable[str]) -> str:
+    def build_complete_statement(self, text: str, sql_src: Iterator[str]) -> str:
         statement_components = [text]
 
         while not complete_statement(" ".join(statement_components)):
@@ -46,23 +46,28 @@ class SQLFileReader(SQLReader):
             for line in sql_gen:
                 yield self.build_complete_statement(line, sql_gen)
 
-    def get_next(self, sql_src: Iterable[str]) -> str:
+    def get_next(self, sql_src: Iterator[str]) -> str:
         return next(sql_src)
 
 
 class SQLPromptReader(SQLReader):
     def __init__(
         self,
-        source: PromptSession,
+        source: Optional[PromptSession],
         message: str = DEFAULT_PROMPT_MESSAGE,
         continuation: str = DEFAULT_PROMPT_CONTINUATION,
     ) -> None:
+        if source is None:
+            raise SQLReaderError("'source' cannot be None for SQLPromptReader")
+
         self.message = message
         self.continuation = continuation
 
         super().__init__(source)
 
     def prompt(self) -> str:
+        assert self.source is not None  # to appease mypy
+
         text = self.source.prompt(self.message)
 
         if text.startswith("."):

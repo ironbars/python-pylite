@@ -18,9 +18,9 @@ class SQLResultWriter:
         colsep: str = "|",
         rowsep: str = "\n",
     ) -> None:
-        self._dest = None
+        self._dest: TextIO = sys.stdout
         self.mode = mode
-        self.dest = dest
+        self.dest = dest  # type: ignore[assignment]
         self.colsep = colsep
         self.rowsep = rowsep
 
@@ -80,7 +80,7 @@ class SQLResultWriter:
         self._dest = sys.stdout
 
     def _ensure_dest_closed(self):
-        if self._dest not in (sys.stdout, None) and not self._dest.closed:
+        if self._dest is not sys.stdout and not self._dest.closed:
             self._dest.close()
 
 

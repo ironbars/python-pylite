@@ -11,10 +11,10 @@ from pylite.input import (
     DEFAULT_PROMPT_MESSAGE,
     SQLPromptReader,
 )
-from pylite.output import PyliteSqlResultWriter
+from pylite.output import SQLResultWriter
 
 
-class PylitePromptSession(object):
+class PylitePromptSession:
     def __init__(self, connection: Connection) -> None:
         self.connection = connection
         self.style = Style.from_dict(
@@ -23,13 +23,13 @@ class PylitePromptSession(object):
                 "pygments.literal.string": "#FF5833",
             }
         )
-        self.session = PromptSession(
+        self.session: PromptSession = PromptSession(
             lexer=PygmentsLexer(SqlLexer),
             style=self.style,
             include_default_pygments_style=False,
         )
         self.reader = SQLPromptReader(self.session)
-        self.writer = PyliteSqlResultWriter()
+        self.writer = SQLResultWriter()
 
     def prompt(self) -> str:
         text = self.reader.prompt()
@@ -81,7 +81,7 @@ class PylitePromptSession(object):
 
     @dest.setter
     def dest(self, new_dest: str) -> None:
-        self.writer.dest = new_dest
+        self.writer.dest = new_dest  # type: ignore[assignment]
 
     @dest.deleter
     def dest(self):
