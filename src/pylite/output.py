@@ -1,15 +1,93 @@
 import json
 import sys
-from collections import OrderedDict
+from io import TextIO
+from sqlite3 import Cursor
+from typing import Callable, Optional, TypeVar
 
 from tabulate import tabulate
 
+from pylite.exceptions import SQLResultWriterError
 
 OUTPUT_MODES = dict()
 
 
-def output_mode(mode):
-    def wrapper(func):
+class SQLResultWriter:
+    def __init__(
+        self,
+        mode: str = "default",
+        dest: str = "stdout",
+        colsep: str = "|",
+        rowsep: str = "\n",
+    ) -> None:
+        self._dest = None
+        self.mode = mode
+        self.dest = dest
+        self.colsep = colsep
+        self.rowsep = rowsep
+
+    def write_result(self, data: str | Cursor, mode: Optional[str] = None):
+        output_mode = mode or self.mode
+
+        if output_mode == "meta":
+            print(data, file=self.dest)
+        else:
+            rows = data.fetchall()
+
+            if len(rows) > 0:
+                fields = tuple(col[0] for col in data.description)
+                rows = [fields] + rows
+
+                OUTPUT_MODES[output_mode](rows, self)
+
+    @property
+    def mode(self) -> str:
+        return self._mode
+
+    @mode.setter
+    def mode(self, new_mode: str) -> None:
+        valid_modes = get_valid_output_modes()
+
+        if new_mode not in valid_modes:
+            raise SQLResultWriterError(f"Invalid output mode: {new_mode}")
+
+        self._mode = new_mode
+
+    @mode.deleter
+    def mode(self) -> None:
+        self._mode = "default"
+
+    @property
+    def dest(self) -> TextIO:
+        return self._dest
+
+    @dest.setter
+    def dest(self, new_dest: str) -> None:
+        self._ensure_dest_closed()
+
+        if new_dest == "stdout":
+            self._dest = sys.stdout
+        else:
+            try:
+                self._dest = open(new_dest, "w")
+            except OSError as e:
+                raise SQLResultWriterError(f"Failed to open file {new_dest}: {e}")
+
+    @dest.deleter
+    def dest(self) -> None:
+        self._ensure_dest_closed()
+
+        self._dest = sys.stdout
+
+    def _ensure_dest_closed(self):
+        if self._dest not in (sys.stdout, None) and not self._dest.closed:
+            self._dest.close()
+
+
+T = TypeVar("T", bound=Callable)
+
+
+def output_mode(mode: str) -> Callable[[T], T]:
+    def wrapper(func: T) -> T:
         OUTPUT_MODES[mode] = func
 
         return func
@@ -18,7 +96,7 @@ def output_mode(mode):
 
 
 @output_mode("default")
-def _write_default(rows, writer):
+def _write_default(rows: list[tuple[str, ...]], writer: SQLResultWriter) -> None:
     headers = rows[0]
     data = rows[1:]
 
@@ -26,7 +104,7 @@ def _write_default(rows, writer):
 
 
 @output_mode("list")
-def _write_list(rows, writer):
+def _write_list(rows: list[tuple[str, ...]], writer: SQLResultWriter) -> None:
     data = rows[1:]
     str_data = []
 
@@ -37,7 +115,7 @@ def _write_list(rows, writer):
 
 
 @output_mode("line")
-def _write_lines(rows, writer):
+def _write_lines(rows: list[tuple[str, ...]], writer: SQLResultWriter) -> None:
     fields = rows[0]
     dict_data = rows_to_dict(rows)
     line_data = []
@@ -53,7 +131,7 @@ def _write_lines(rows, writer):
 
 
 @output_mode("json")
-def _write_json(rows, writer):
+def _write_json(rows: list[tuple[str, ...]], writer: SQLResultWriter) -> None:
     dict_data = rows_to_dict(rows)
 
     print(
@@ -62,113 +140,32 @@ def _write_json(rows, writer):
 
 
 @output_mode("json-pretty")
-def _write_json_pretty(rows, writer):
+def _write_json_pretty(rows: list[tuple[str, ...]], writer: SQLResultWriter) -> None:
     dict_data = rows_to_dict(rows)
 
     print(json.dumps(dict_data, indent=2), file=writer.dest)
 
 
 @output_mode("python")
-def _write_python_list(rows, writer):
+def _write_python_list(rows: list[tuple[str, ...]], writer: SQLResultWriter) -> None:
     data = rows[1:]
 
     for row in data:
         print(row, file=writer.dest)
 
 
-# This is here so that all commands can have a common interface for printing
-# data, which in turn ensures that all output goes to the same place (be it
-# a file or stdout).
-@output_mode("meta")
-def _write_meta(rows, writer):
-    print(rows, file=writer.dest)
-
-
-class PyliteSqlResultWriterError(Exception):
-    pass
-
-
-class PyliteSqlResultWriter(object):
-    def __init__(self, mode="default", dest="stdout", colsep="|", rowsep="\n"):
-        self.mode = mode
-        self.dest = dest
-        self.colsep = colsep
-        self.rowsep = rowsep
-
-    def write_result(self, data, mode=None):
-        if mode is not None:
-            output_mode = mode
-        else:
-            output_mode = self.mode
-
-        if output_mode == "meta":
-            OUTPUT_MODES[output_mode](data, self)
-        else:
-            rows = data.fetchall()
-
-            if len(rows) > 0:
-                fields = tuple(col[0] for col in data.description)
-                rows = [fields] + rows
-
-                OUTPUT_MODES[output_mode](rows, self)
-
-    @property
-    def mode(self):
-        return self._mode
-
-    @mode.setter
-    def mode(self, new_mode):
-        valid_modes = get_valid_output_modes()
-
-        if new_mode not in valid_modes:
-            raise PyliteSqlResultWriterError("Invalid output mode")
-
-        self._mode = new_mode
-
-    @mode.deleter
-    def mode(self):
-        self._mode = "default"
-
-    @property
-    def dest(self):
-        return self._dest
-
-    @dest.setter
-    def dest(self, new_dest):
-        if new_dest == "stdout":
-            self._dest = sys.stdout
-            return
-
-        if self._dest is not sys.stdout and self._dest.closed is False:
-            self._dest.close()
-        else:
-            self._dest = open(new_dest, "w")
-
-    @dest.deleter
-    def dest(self):
-        if self._dest is sys.stdout:
-            return
-
-        if self._dest.closed is False:
-            self._dest.close()
-
-        self._dest = sys.stdout
-
-
-def rows_to_dict(rows):
+def rows_to_dict(rows: list[tuple]) -> list[dict[str, str]]:
     fields = rows[0]
     data = rows[1:]
     dict_data = []
 
     for row in data:
-        dict_data.append(OrderedDict(zip(fields, row)))
+        dict_data.append(dict(zip(fields, row)))
 
     return dict_data
 
 
-def get_valid_output_modes():
+def get_valid_output_modes() -> list[str]:
     valid = list(OUTPUT_MODES.keys())
-
-    valid.remove("meta")
 
     return sorted(valid)
