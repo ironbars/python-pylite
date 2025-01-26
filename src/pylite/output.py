@@ -1,8 +1,7 @@
 import json
 import sys
-from io import TextIO
 from sqlite3 import Cursor
-from typing import Callable, Optional, TypeVar
+from typing import Callable, Optional, TextIO, TypeVar
 
 from tabulate import tabulate
 

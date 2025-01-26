@@ -1,6 +1,5 @@
-from io import TextIO
 from sqlite3 import Connection
-from typing import Any
+from typing import Any, TextIO
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.lexers import PygmentsLexer
