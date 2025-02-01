@@ -39,6 +39,9 @@ class PylitePromptSession:
     def write_result(self, data: Any, mode: str | None = None) -> None:
         self.writer.write_result(data, mode)
 
+    def write_error(self, message: str) -> None:
+        self.writer.write_error(message)
+
     @property
     def message(self) -> str:
         return self.reader.message

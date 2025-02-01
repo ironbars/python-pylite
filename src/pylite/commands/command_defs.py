@@ -1,59 +1,16 @@
-import argparse
 import shlex
-import sys
 from sqlite3 import OperationalError
-from typing import Any, Callable, Never, Type, TypeVar
+from typing import Callable, Type, TypeVar
 
 from prompt_toolkit import print_formatted_text
 from prompt_toolkit.formatted_text import FormattedText
 
+from pylite.commands.dot_command import DotCommand, DotCommandArgParser
+from pylite.commands.registry import cmd_registry
 from pylite.exceptions import REPLResetEvent, SQLReaderError
 from pylite.input import SQLFileReader
 from pylite.output import get_valid_output_modes
 from pylite.session import PylitePromptSession
-
-
-class DotCommandArgParser(argparse.ArgumentParser):
-    def error(self, message: str) -> Never:
-        self.print_usage(sys.stderr)
-        raise REPLResetEvent
-
-
-class DotCommand(object):
-    def __init__(self, name: str) -> None:
-        self.name = name
-        self.parser = self.get_parser()
-
-    def execute(self, cmd_args: list[str], session: PylitePromptSession) -> None:
-        raise NotImplementedError
-
-    def get_parser(self) -> DotCommandArgParser:
-        raise NotImplementedError
-
-
-class CommandRegistry:
-    def __init__(self) -> None:
-        self._commands: dict[str, DotCommand] = dict()
-
-    def register(self, name: str, command: DotCommand) -> None:
-        self._commands[name] = command
-
-    def get(self, name: str) -> DotCommand:
-        return self._commands[name]
-
-    def get_all(self) -> list[str]:
-        return list(self._commands.keys())
-
-    def __contains__(self, name: str) -> bool:
-        return name in self._commands
-
-
-cmd_registry = CommandRegistry()
-T = TypeVar("T", bound=DotCommand)
-
-
-def eprint(*args: Any, **kwargs: Any) -> None:
-    print(*args, file=sys.stderr, **kwargs)
 
 
 def handle_dot_command(text: str, session: PylitePromptSession):
@@ -64,8 +21,11 @@ def handle_dot_command(text: str, session: PylitePromptSession):
     try:
         cmd_registry.get(command).execute(cmd_args, session)
     except KeyError:
-        eprint(f"Error: unrecognized command: {command}")
+        session.write_error(f"Error: unrecognized command: {command}")
         raise REPLResetEvent
+
+
+T = TypeVar("T", bound=DotCommand)
 
 
 def cmd(name: str) -> Callable[[Type[T]], Type[T]]:
@@ -106,7 +66,7 @@ class _DotRead(DotCommand):
 
                 session.write_result(result)
         except SQLReaderError:
-            eprint("Error: incomplete statement")
+            session.write_error("Error: incomplete statement")
 
         raise REPLResetEvent
 
@@ -393,7 +353,7 @@ class _DotHelp(DotCommand):
             ]
 
         if not topics:
-            eprint(f"Nothing matches '{topic_pattern}'")
+            session.write_error(f"Nothing matches '{topic_pattern}'")
             raise REPLResetEvent
 
         for t in topics:

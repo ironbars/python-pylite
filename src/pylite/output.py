@@ -24,7 +24,7 @@ class SQLResultWriter:
         self.colsep = colsep
         self.rowsep = rowsep
 
-    def write_result(self, data: str | Cursor, mode: Optional[str] = None):
+    def write_result(self, data: str | Cursor, mode: Optional[str] = None) -> None:
         output_mode = mode or self.mode
 
         if output_mode == "meta":
@@ -39,6 +39,18 @@ class SQLResultWriter:
                 OUTPUT_MODES[output_mode](rows, self)
         else:  # should never get here
             raise TypeError("Invalid data type provided to write_result()")
+
+    def write_error(self, message: str) -> None:
+        original_dest = self.dest
+
+        try:
+            self.dest = "stderr"  # type: ignore[assignment]
+            self.write_result(message, mode="meta")
+        finally:
+            # Here, we need to assign to the underlying TextIO object since:
+            # 1. That is what's returned by self.dest, thus is what original_dest holds
+            # 2. We don't have access to the string used to create original_dest
+            self._dest = original_dest
 
     @property
     def mode(self) -> str:
@@ -67,6 +79,8 @@ class SQLResultWriter:
 
         if new_dest == "stdout":
             self._dest = sys.stdout
+        elif new_dest == "stderr":
+            self._dest = sys.stderr
         else:
             try:
                 self._dest = open(new_dest, "w")
@@ -79,8 +93,8 @@ class SQLResultWriter:
 
         self._dest = sys.stdout
 
-    def _ensure_dest_closed(self):
-        if self._dest is not sys.stdout and not self._dest.closed:
+    def _ensure_dest_closed(self) -> None:
+        if self._dest not in (sys.stdout, sys.stderr) and not self._dest.closed:
             self._dest.close()
 
 

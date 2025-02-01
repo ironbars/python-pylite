@@ -1,0 +1,1 @@
+from pylite.commands.command_defs import handle_dot_command as handle_dot_command
