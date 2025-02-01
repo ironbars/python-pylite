@@ -1,6 +1,7 @@
 import argparse
 import shlex
 import sys
+from sqlite3 import OperationalError
 from typing import Any, Callable, Never, Type, TypeVar
 
 from prompt_toolkit import print_formatted_text
@@ -334,6 +335,41 @@ class _DotDump(DotCommand):
             "TABLE",
             nargs="?",
             help="A LIKE pattern specifying the table to dump",
+        )
+
+        return parser
+
+
+@cmd(".databases")
+class _DotDatabases(DotCommand):
+    def execute(self, cmd_args: list[str], session: PylitePromptSession) -> None:
+        sql = "PRAGMA database_list;"
+        result = session.connection.execute(sql).fetchall()
+
+        for seq, name, file in result:
+            try:
+                # This value is coming from the database and should be safe to format
+                # Also, this is a reliable way to tell if a SQLite database is writeable
+                # user_version will always be 0 (unless you've changed it), so this
+                # pragma has no effect.  It will, however, throw an exception if the
+                # database was opened RO.
+                session.connection.execute(f"PRAGMA {name}.user_version=0")
+                writeable = True
+            except OperationalError:  # Not writeable
+                writeable = False
+
+            perms = "r/w" if writeable else "r/o"
+            file = file or '""'
+
+            session.write_result(f"{name}: {file} {perms}", mode="meta")
+
+        raise REPLResetEvent
+
+    def get_parser(self) -> DotCommandArgParser:
+        parser = DotCommandArgParser(
+            prog=self.name,
+            add_help=False,
+            description="List names and files of attached databases",
         )
 
         return parser
