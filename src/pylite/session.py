@@ -11,7 +11,7 @@ from pylite.input import (
     DEFAULT_PROMPT_MESSAGE,
     SQLPromptReader,
 )
-from pylite.output import SQLResultWriter
+from pylite.output.writer import SQLResultWriter
 
 
 class PylitePromptSession:
