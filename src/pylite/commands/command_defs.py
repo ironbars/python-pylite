@@ -182,6 +182,8 @@ class _DotMode(DotCommand):
 
         if mode is not None:
             session.mode = mode
+        else:
+            session.write_result(f"Current output mode: {session.mode}", mode="meta")
 
         raise REPLResetEvent
 
