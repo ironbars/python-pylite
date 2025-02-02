@@ -12,7 +12,7 @@ class DotCommandArgParser(argparse.ArgumentParser):
         raise REPLResetEvent
 
 
-class DotCommand(object):
+class DotCommand:
     def __init__(self, name: str) -> None:
         self.name = name
         self.parser = self.get_parser()
