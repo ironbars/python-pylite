@@ -15,6 +15,7 @@ class SQLResultWriter:
         rowsep: str = "\n",
     ) -> None:
         self._dest: TextIO = sys.stdout
+        self._dest_name: str = dest  # track this as a string
         self.mode = mode
         self.dest = dest  # type: ignore[assignment]
         self.colsep: str = colsep
@@ -83,11 +84,18 @@ class SQLResultWriter:
             except OSError as e:
                 raise SQLResultWriterError(f"Failed to open file {new_dest}: {e}")
 
+        self._dest_name = new_dest
+
     @dest.deleter
     def dest(self) -> None:
         self._ensure_dest_closed()
 
         self._dest = sys.stdout
+        self._dest_name = "stdout"
+
+    @property
+    def dest_name(self) -> str:
+        return self._dest_name
 
     def _ensure_dest_closed(self) -> None:
         if self._dest not in (sys.stdout, sys.stderr) and not self._dest.closed:
