@@ -81,6 +81,22 @@ def _write_python_list(rows: list[tuple[str, ...]], writer: SQLResultWriter) -> 
         print(row, file=writer.dest)
 
 
+@output_mode("markdown")
+def _write_markdown(rows: list[tuple[str, ...]], writer: SQLResultWriter) -> None:
+    headers = rows[0]
+    data = rows[1:]
+
+    print(tabulate(data, headers=headers, tablefmt="github"), file=writer.dest)
+
+
+@output_mode("html")
+def _write_html(rows: list[tuple[str, ...]], writer: SQLResultWriter) -> None:
+    headers = rows[0]
+    data = rows[1:]
+
+    print(tabulate(data, headers=headers, tablefmt="html"), file=writer.dest)
+
+
 def rows_to_dict(rows: list[tuple]) -> list[dict[str, str]]:
     fields = rows[0]
     data = rows[1:]
