@@ -70,14 +70,14 @@ class SQLResultWriter:
         # has already been made and no further action is necessary.
         if new_mode in ("csv", "tsv") and self._mode not in ("csv", "tsv"):
             if self._dest_name not in ("stdout", "stderr"):
-                if isinstance(self._dest, TextIOWrapper):
+                if isinstance(self._dest, TextIOWrapper):  # to appease mypy
                     self._dest.reconfigure(newline="")
 
         # If 'csv' or 'tsv' is not being set as the new mode AND the current mode is one
         # of those, we need to set the file back to normal behavior.
         if new_mode not in ("csv", "tsv") and self._mode in ("csv", "tsv"):
             if self._dest_name not in ("stdout", "stderr"):
-                if isinstance(self._dest, TextIOWrapper):
+                if isinstance(self._dest, TextIOWrapper):  # to appease mypy
                     self._dest.reconfigure(newline=None)
 
         self._mode = new_mode
