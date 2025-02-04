@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import json
 from typing import TYPE_CHECKING, Callable, TypeVar
 
@@ -95,6 +96,22 @@ def _write_html(rows: list[tuple[str, ...]], writer: SQLResultWriter) -> None:
     data = rows[1:]
 
     print(tabulate(data, headers=headers, tablefmt="html"), file=writer.dest)
+
+
+@output_mode("csv")
+def _write_csv(rows: list[tuple[str, ...]], writer: SQLResultWriter) -> None:
+    data = rows[1:]
+    w = csv.writer(writer.dest, quoting=csv.QUOTE_NONNUMERIC)
+
+    w.writerows(data)
+
+
+@output_mode("tsv")
+def _write_tsv(rows: list[tuple[str, ...]], writer: SQLResultWriter) -> None:
+    data = rows[1:]
+    w = csv.writer(writer.dest, delimiter="\t", quoting=csv.QUOTE_NONNUMERIC)
+
+    w.writerows(data)
 
 
 def rows_to_dict(rows: list[tuple]) -> list[dict[str, str]]:

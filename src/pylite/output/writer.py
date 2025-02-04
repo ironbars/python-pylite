@@ -1,4 +1,5 @@
 import sys
+from io import TextIOWrapper
 from sqlite3 import Cursor
 from typing import TextIO
 
@@ -14,8 +15,12 @@ class SQLResultWriter:
         colsep: str = "|",
         rowsep: str = "\n",
     ) -> None:
+        # Temporary defaults for internal attributes
         self._dest: TextIO = sys.stdout
         self._dest_name: str = dest  # track this as a string
+        self._mode = "default"
+
+        # Use the setter logic in case they're initialized to non-default values
         self.mode = mode
         self.dest = dest  # type: ignore[assignment]
         self.colsep: str = colsep
@@ -38,15 +43,12 @@ class SQLResultWriter:
             raise TypeError("Invalid data type provided to write_result()")
 
     def write_error(self, message: str) -> None:
-        original_dest = self.dest
+        original_dest = self._dest
 
         try:
-            self.dest = "stderr"  # type: ignore[assignment]
+            self._dest = sys.stderr
             self.write_result(message, mode="meta")
         finally:
-            # Here, we need to assign to the underlying TextIO object since:
-            # 1. That is what's returned by self.dest, thus is what original_dest holds
-            # 2. We don't have access to the string used to create original_dest
             self._dest = original_dest
 
     @property
@@ -60,6 +62,24 @@ class SQLResultWriter:
         if new_mode not in valid_modes:
             raise SQLResultWriterError(f"Invalid output mode: {new_mode}")
 
+        # The 'csv' and 'tsv' modes will rely on the stdlib's csv package.  The docs say
+        # that, if writing to a file, `newline` should be set to "" to avoid problems.
+        # We can use the reconfigure() method to make that change without closing and
+        # re-opening the file.
+        # Further, if the mode is already 'csv' or 'tsv', we can assume that the change
+        # has already been made and no further action is necessary.
+        if new_mode in ("csv", "tsv") and self._mode not in ("csv", "tsv"):
+            if self._dest_name not in ("stdout", "stderr"):
+                if isinstance(self._dest, TextIOWrapper):
+                    self._dest.reconfigure(newline="")
+
+        # If 'csv' or 'tsv' is not being set as the new mode AND the current mode is one
+        # of those, we need to set the file back to normal behavior.
+        if new_mode not in ("csv", "tsv") and self._mode in ("csv", "tsv"):
+            if self._dest_name not in ("stdout", "stderr"):
+                if isinstance(self._dest, TextIOWrapper):
+                    self._dest.reconfigure(newline=None)
+
         self._mode = new_mode
 
     @mode.deleter
@@ -68,16 +88,16 @@ class SQLResultWriter:
 
     @property
     def dest(self) -> TextIO:
+        if self._dest.closed:
+            self._dest = sys.stdout
         return self._dest
 
     @dest.setter
     def dest(self, new_dest: str) -> None:
         self._ensure_dest_closed()
 
-        if new_dest == "stdout":
-            self._dest = sys.stdout
-        elif new_dest == "stderr":
-            self._dest = sys.stderr
+        if new_dest in ("stdout", "stderr"):
+            self._dest = getattr(sys, new_dest)
         else:
             try:
                 self._dest = open(new_dest, "w")
