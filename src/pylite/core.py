@@ -54,4 +54,5 @@ def repl(database: str) -> None:
             else:
                 session.write_result(messages)
 
+    session.connection.close()
     print("\nGoodBye!")
